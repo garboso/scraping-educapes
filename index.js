@@ -4,7 +4,7 @@ const fs = require('fs');
 const cheerio = require('cheerio');
 
 (async () => {
-	for (let year = 2017; year <= 2017; year++) {
+	for (let year = 1999; year <= 1999; year++) {
 		const numberOfResults = await getNumberOfResultsByYear(year);
 		const results = await getAllFormattedResults(year, numberOfResults);
 		fs.promises.writeFile(`results_${year}.json`, JSON.stringify(results));
@@ -31,30 +31,27 @@ async function getAllFormattedResults(year, numberOfResults) {
 
 	for (let start = 0; start <= numberOfResults; start += step) {
 		const uri =
-			`http://www.educapes.capes.gov.br/simple-search?location=%2F&query=&sort_by=dc.date.available_dt&order=desc&filter_field_1=dateIssued&filter_type_1=equals&filter_value_1=${year}&rpp=${step}&start=${start}`;
+			`http://www.educapes.capes.gov.br/simple-search?location=%2F&query=&sort_by=dc.date.available_dt&order=asc&filter_field_1=dateIssued&filter_type_1=equals&filter_value_1=${year}&rpp=${step}&start=${start}`;
 
 		const results = await axios(uri, { httpsAgent: new https.Agent({ rejectUnauthorized: false })});
 		const $ = cheerio.load(results.data);
 
 		const resultsList = $('.itemList li');
 
-		const values = resultsList.toArray().map(li => {
-			const publicationDate = formatDate($(li).find('.data').text());
-
-			if (publicationDate.getYear() === new Date(year).getYear()) {
-				const oda = {
-					title: $(li).find('.t1 a').text(),
-					link: $(li).find('.t1 a').attr('href'),
-					description: $(li).find('.t2').text(),
-					publicationDate: publicationDate,
-					type: getType($(li).find('.item-list').attr('class').split(' ')[1])
-				};
-
-				return oda;
-			} else {
-				return;
-			}
-		});
+		const values = resultsList.toArray()
+			.filter(li => {
+				const publicationDate = formatDate($(li).find('.data').text());
+				return publicationDate.getYear() === new Date(year, '').getYear();
+			})
+			.map(li => {
+				return {
+						title: $(li).find('.t1 a').text(),
+						link: $(li).find('.t1 a').attr('href'),
+						description: $(li).find('.t2').text(),
+						publicationDate: formatDate($(li).find('.data').text()),
+						type: getType($(li).find('.item-list').attr('class').split(' ')[1])
+					};
+			});
 
 		allFormattedResults.push(...values);
 	}
